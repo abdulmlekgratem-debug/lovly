@@ -94,6 +94,24 @@ export default function ContractPDFDialog({ open, onOpenChange, contract }: Cont
 
   const contractDetails = calculateContractDetails();
 
+  // Auto-fill from contract when dialog opens or contract changes
+  useEffect(() => {
+    if (!contract) return;
+    const img = getBillboardImageFromContract(contract as any);
+    const details = calculateContractDetails();
+    setFormData((prev) => ({
+      adsType: contract?.ad_type || (contract as any)['Ad Type'] || prev.adsType || 'عقد إيجار لوحات إعلانية',
+      date: prev.date || new Date().toLocaleDateString('ar-LY'),
+      contractNumber: (contract as any)?.id || (contract as any)?.Contract_Number || (contract as any)?.['Contract Number'] || prev.contractNumber || '',
+      companyName: prev.companyName || 'شركة الفارس الذهبي للدعاية والإعلان',
+      clientName: (contract as any)?.customer_name || (contract as any)?.['Customer Name'] || prev.clientName || '',
+      phoneNumber: prev.phoneNumber || '',
+      price: prev.price || details.price,
+      duration: prev.duration || details.duration,
+      image: prev.image || img,
+    }));
+  }, [open, contract]);
+
   return (
     <UIDialog.Dialog open={open} onOpenChange={onOpenChange}>
       <UIDialog.DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
