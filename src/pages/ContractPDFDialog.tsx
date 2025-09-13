@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import * as UIDialog from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ interface ContractPDFDialogProps {
 }
 
 export default function ContractPDFDialog({ open, onOpenChange, contract }: ContractPDFDialogProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = React.useState(false);
   const [formData, setFormData] = useState<InvoiceData>({
     adsType: contract?.ad_type || contract?.['Ad Type'] || 'عقد إيجار لوحات إعلانية',
     date: new Date().toLocaleDateString('ar-LY'),
