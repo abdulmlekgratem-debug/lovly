@@ -1,6 +1,7 @@
 import { generate } from '@pdfme/generator';
 import { Template } from '@pdfme/common';
 import { text, image } from '@pdfme/schemas';
+import { generate } from '@pdfme/generator';
 
 // Function to convert image to base64
 async function getBase64FromUrl(url: string): Promise<string> {
@@ -298,15 +299,27 @@ export function getBillboardImageFromContract(contract: ContractData): string {
   if (!contract?.billboards || contract.billboards.length === 0) {
     return '';
   }
-  
-  // Get the first billboard with an image
+
+  // Get the first billboard with an image (support multiple possible fields)
   for (const billboard of contract.billboards) {
-    const image = billboard.image || billboard.Image || billboard.billboard_image;
-    if (image && typeof image === 'string' && image.trim() !== '') {
-      return image;
+    const candidates = [
+      billboard.image,
+      billboard.Image,
+      billboard.billboard_image,
+      (billboard as any).Image_URL,
+      (billboard as any)['@IMAGE'],
+      (billboard as any).image_url,
+      (billboard as any).imageUrl,
+      (billboard as any).thumbnail,
+      (billboard as any).photo,
+    ];
+    for (const img of candidates) {
+      if (img && typeof img === 'string' && img.trim() !== '') {
+        return img;
+      }
     }
   }
-  
+
   return '';
 }
 
@@ -359,12 +372,18 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   try {
     // Create template with 2-page layout and full opacity backgrounds
     const template = await createPDFTemplate();
-    
+
+    // Ensure the image is embedded as base64 (pdfme requires data URL)
+    let embeddedImage = '';
+    if (data.image) {
+      embeddedImage = data.image.startsWith('data:') ? data.image : await getBase64FromUrl(data.image);
+    }
+
     // Prepare the input data for both pages
     const inputs = [
       // Page 1 data
       {
-        "page1Background": "", // Background will be loaded in template
+        "page1Background": "",
         "date": data.date || new Date().toLocaleDateString('en-US'),
         "conter number": data.contractNumber || `${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
         "name compny": data.companyName || "Al-Fares Al-Dhahabi Advertising Company",
@@ -375,13 +394,11 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
       },
       // Page 2 data
       {
-        "page2Background": "", // Background will be loaded in template
-        "Image": data.image || "",
+        "page2Background": "",
+        "Image": embeddedImage,
         "ads type": data.adsType || "Advertisement Type"
       }
     ];
-
-    console.log('Generating 2-page PDF with data:', inputs);
 
     // Generate the PDF with plugins properly registered
     const pdf = await generate({
