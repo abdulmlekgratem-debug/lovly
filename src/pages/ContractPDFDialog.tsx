@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import * as UIDialog from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { generateInvoicePDF, downloadPDF, type InvoiceData } from '@/lib/pdfGenerator';
+import { generateContractPDF, downloadPDF, type InvoiceData, getBillboardImageFromContract } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 
 interface ContractPDFDialogProps {
@@ -82,7 +82,7 @@ export default function ContractPDFDialog({ open, onOpenChange, contract }: Cont
       const filename = `contract-${formData.contractNumber || 'default'}.pdf`;
       downloadPDF(pdfBytes, filename);
       
-      toast.success('تم إنشاء عقد PDF بنجاح!');
+      toast.success('تم إنشاء عقد PDF ��نجاح!');
       onOpenChange(false);
     } catch (error) {
       console.error('Error generating contract PDF:', error);
