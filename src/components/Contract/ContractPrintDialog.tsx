@@ -19,7 +19,7 @@ export function ContractPrintDialog({ contract, trigger }: ContractPrintDialogPr
     }
     
     for (const billboard of contract.billboards) {
-      const image = billboard.image || billboard.Image || billboard.billboard_image;
+      const image = billboard.image || billboard.Image || billboard.billboard_image || (billboard as any).Image_URL || (billboard as any)['@IMAGE'] || (billboard as any).image_url;
       if (image && typeof image === 'string' && image.trim() !== '') {
         return image;
       }
@@ -54,7 +54,7 @@ export function ContractPrintDialog({ contract, trigger }: ContractPrintDialogPr
     
     // Get billboard count
     const billboardCount = contract.billboards ? contract.billboards.length : 0;
-    const billboardInfo = billboardCount > 0 ? ` (${billboardCount} لوحة إعلانية)` : '';
+    const billboardInfo = billboardCount > 0 ? ` (${billboardCount} لوحة ��علانية)` : '';
     
     return {
       contractNumber: contractNumber.toString(),
@@ -305,7 +305,7 @@ export function ContractPrintDialog({ contract, trigger }: ContractPrintDialogPr
         </DialogHeader>
         <div className="space-y-4">
           <div className="text-sm text-gray-600">
-            <p>سيتم فتح العقد في نافذة جديدة بالمتصفح مع إمكانية الطباعة المباشرة.</p>
+            <p>سيتم فتح العقد في نافذة جديدة بالمتصفح مع إمكانية الطباعة المبا��رة.</p>
             <p className="mt-2">العقد يحتوي على:</p>
             <ul className="list-disc list-inside mt-1 space-y-1">
               <li>تفاصيل العقد والعميل</li>
