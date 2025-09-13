@@ -78,7 +78,7 @@ export default function ContractPDFDialog({ open, onOpenChange, contract }: Cont
         duration: formData.duration || contractDetails.duration
       };
 
-      const pdfBytes = await generateInvoicePDF(invoiceData);
+      const pdfBytes = await generateContractPDF(contract, invoiceData);
       const filename = `contract-${formData.contractNumber || 'default'}.pdf`;
       downloadPDF(pdfBytes, filename);
       
