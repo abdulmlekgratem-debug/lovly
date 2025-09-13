@@ -23,7 +23,7 @@ export default function ContractPDFDialog({ open, onOpenChange, contract }: Cont
     phoneNumber: '',
     price: '',
     duration: '',
-    image: ''
+    image: getBillboardImageFromContract(contract || {})
   });
 
   const handleInputChange = (field: keyof InvoiceData, value: string) => {
@@ -82,7 +82,7 @@ export default function ContractPDFDialog({ open, onOpenChange, contract }: Cont
       const filename = `contract-${formData.contractNumber || 'default'}.pdf`;
       downloadPDF(pdfBytes, filename);
       
-      toast.success('تم إنشاء عقد PDF ��نجاح!');
+      toast.success('تم إنشاء عقد PDF بنجاح!');
       onOpenChange(false);
     } catch (error) {
       console.error('Error generating contract PDF:', error);
