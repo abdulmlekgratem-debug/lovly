@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Printer, Eye } from 'lucide-react';
-import { ContractPDFDialog } from '@/components/Contract';
+import { ContractPrintDialog } from '@/components/Contract';
 
 // Mock contract data
 const mockContract = {
@@ -102,7 +102,7 @@ export default function ContractEdit() {
           </div>
         </div>
         <div className="flex gap-2">
-          <ContractPDFDialog 
+          <ContractPrintDialog 
             contract={contract}
             trigger={
               <Button variant="outline">
@@ -277,7 +277,7 @@ export default function ContractEdit() {
               <CardTitle>إجراءات سريعة</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <ContractPDFDialog 
+              <ContractPrintDialog 
                 contract={contract}
                 trigger={
                   <Button variant="outline" className="w-full">
