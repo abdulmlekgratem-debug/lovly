@@ -1,4 +1,3 @@
-import { generate } from '@pdfme/generator';
 import { Template } from '@pdfme/common';
 import { text, image } from '@pdfme/schemas';
 import { generate } from '@pdfme/generator';
