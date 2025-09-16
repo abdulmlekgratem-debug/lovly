@@ -1,6 +1,6 @@
 import type { Billboard } from '@/types';
 import { CUSTOMERS, CustomerType, getPriceFor } from '@/data/pricing';
-import { addMonths, format as fmt } from 'date-fns';
+import { addDays, format as fmt } from 'date-fns';
 
 function formatCurrency(n: number) {
   return `${(n || 0).toLocaleString('ar-LY')} د.ل`;
@@ -45,7 +45,7 @@ export function buildAlFaresOfferHtml(items: Billboard[], meta: OfferMeta) {
     const size = (b as any).Size || (b as any).size || '';
     const level = (b as any).Level || (b as any).level;
     const unit = getPriceFor(size, level, customer, months) ?? 0;
-    const end = fmt(addMonths(new Date(), months), 'yyyy-MM-dd');
+    const end = fmt(addDays(new Date(), months * 30), 'yyyy-MM-dd');
     const url = mapUrl(b as any);
     const city = (b as any).City || (b as any).city || '';
     const muni = (b as any).Municipality || (b as any).municipality || '';
@@ -74,7 +74,7 @@ export function buildAlFaresOfferHtml(items: Billboard[], meta: OfferMeta) {
   }, 0);
 
   const period = months === 12 ? 'سنة كاملة' : months === 6 ? '180 يومًا' : `${months} شهر`;
-  const endDateText = fmt(addMonths(new Date(), months), 'yyyy/MM/dd');
+  const endDateText = fmt(addDays(new Date(), months * 30), 'yyyy/MM/dd');
 
   return `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/>
   <title>عقد استئجار مساحات إعلانية</title>
@@ -110,7 +110,7 @@ export function buildAlFaresOfferHtml(items: Billboard[], meta: OfferMeta) {
 
     <div class="box">
       <p>نظراً لرغبة الطرف الثاني في استئجار مساحات إعلانية من الطرف الأول، تم الاتفاق على الشروط التالية.</p>
-      <p>قيمة العقد ${formatCurrency(grand)} بدون طباعة؛ تُدفع نصف القيمة عند توقيع العقد والنصف الآخر بعد التركيب، وإذا تأخر السداد عن 30 يوماً يحق للطرف الأول إعادة تأجير المساحات.</p>
+      <p>قيمة العقد ${formatCurrency(grand)} بدون طباعة؛ تُدفع نصف القيمة عند توقيع العقد والنصف الآخر بعد التركي��، وإذا تأخر السداد عن 30 يوماً يحق للطرف الأول إعادة تأجير المساحات.</p>
       <p>مدة العقد ${period} تبدأ من ${fmt(new Date(), 'yyyy/MM/dd')} وتنتهي في ${endDateText} ويجوز تجديده برضى الطرفين.</p>
     </div>
 
@@ -148,7 +148,7 @@ export function buildMinimalOfferHtml(items: Billboard[], meta: OfferMeta & { lo
     const size = (b as any).Size || (b as any).size || '';
     const level = (b as any).Level || (b as any).level;
     const unit = getPriceFor(size, level, customer, months) ?? 0;
-    const end = fmt(addMonths(new Date(), months), 'yyyy-MM-dd');
+    const end = fmt(addDays(new Date(), months * 30), 'yyyy-MM-dd');
     const url = mapUrl(b as any);
     const city = (b as any).City || (b as any).city || '';
     const district = (b as any).District || (b as any).district || '';
