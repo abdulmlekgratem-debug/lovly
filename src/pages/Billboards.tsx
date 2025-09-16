@@ -50,6 +50,7 @@ export default function Billboards() {
   const [municipalities, setMunicipalities] = useState<any[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [levels, setLevels] = useState<string[]>([]);
+  const [citiesList, setCitiesList] = useState<string[]>([]);
 
   // Load dropdown data
   const loadDropdownData = async () => {
@@ -66,13 +67,21 @@ export default function Billboards() {
       const uniqueSizes = [...new Set((pricingData || []).map(p => p.size).filter(Boolean))];
       setSizes(uniqueSizes);
 
-      // Load levels from pricing table
+      // Load levels from pricing table (correct column name)
       const { data: levelData } = await supabase
         .from('pricing')
-        .select('level')
-        .not('level', 'is', null);
-      const uniqueLevels = [...new Set((levelData || []).map(l => l.level).filter(Boolean))];
+        .select('Billboard_Level')
+        .not('Billboard_Level', 'is', null);
+      const uniqueLevels = [...new Set((levelData || [] as any[]).map((l: any) => l.Billboard_Level).filter(Boolean))];
       setLevels(uniqueLevels);
+
+      // Load distinct cities from billboards
+      const { data: cityRows } = await supabase
+        .from('billboards')
+        .select('City')
+        .not('City', 'is', null);
+      const uniqueCities = [...new Set((cityRows || []).map((r: any) => r.City).filter(Boolean))] as string[];
+      setCitiesList(uniqueCities);
     } catch (error) {
       console.error('Error loading dropdown data:', error);
     }
@@ -97,13 +106,11 @@ export default function Billboards() {
     }
   };
 
-  // Generate billboard name based on municipality and ID
-  const generateBillboardName = (municipalityName: string, billboardId: number, level: string, size: string) => {
-    // Find municipality code
+  // Generate billboard name based on municipality code and ID (e.g., SJ0002)
+  const generateBillboardName = (municipalityName: string, billboardId: number) => {
     const municipality = municipalities.find(m => m.name === municipalityName);
-    const municipalityCode = municipality?.code || 'UNK';
-    
-    return `${municipalityCode}-${String(billboardId).padStart(3, '0')}-${level}-${size}`;
+    const municipalityCode = (municipality?.code || 'UNK').toUpperCase();
+    return `${municipalityCode}${String(billboardId).padStart(4, '0')}`;
   };
 
   // Add new municipality if it doesn't exist
@@ -155,7 +162,7 @@ export default function Billboards() {
   const openEdit = (bb: Billboard) => {
     setEditing(bb);
     setEditForm({
-      Billboard_Name: bb.name || '',
+      Billboard_Name: (bb as any).Billboard_Name || bb.name || '',
       City: (bb as any).City || bb.city || '',
       Municipality: (bb as any).Municipality || (bb as any).municipality || '',
       District: (bb as any).District || (bb as any).district || '',
@@ -174,7 +181,7 @@ export default function Billboards() {
       capital: (bb as any).capital || 0,
       capital_remaining: (bb as any).capital_remaining || (bb as any).capitalRemaining || (bb as any).capital || 0
     });
-    setImagePreview((bb as any).Image_URL || bb.image || '');
+    setImagePreview((bb as any).Image_URL || (bb as any).image || '');
     setEditOpen(true);
   };
 
@@ -201,11 +208,11 @@ export default function Billboards() {
 
   // Update billboard name when municipality, level, or size changes
   useEffect(() => {
-    if (addForm.Municipality && addForm.Level && addForm.Size && addForm.ID) {
-      const generatedName = generateBillboardName(addForm.Municipality, addForm.ID, addForm.Level, addForm.Size);
+    if (addForm.Municipality && addForm.ID) {
+      const generatedName = generateBillboardName(addForm.Municipality, addForm.ID);
       setAddForm(prev => ({ ...prev, Billboard_Name: generatedName }));
     }
-  }, [addForm.Municipality, addForm.Level, addForm.Size, addForm.ID, municipalities]);
+  }, [addForm.Municipality, addForm.ID, municipalities]);
 
   // Handle image selection for add/edit forms
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
@@ -215,9 +222,11 @@ export default function Billboards() {
       reader.onload = (e) => {
         const preview = e.target?.result as string;
         setImagePreview(preview);
-        
-        // Save image name to form
-        const imageName = file.name;
+
+        const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.') + 1) : 'jpg';
+        const safeName = (isEdit ? (editForm.Billboard_Name || '') : (addForm.Billboard_Name || '')) || file.name.replace(/\.[^/.]+$/, '');
+        const sanitized = String(safeName).replace(/[^\w\u0600-\u06FF-]+/g, '_');
+        const imageName = `${sanitized}.${ext}`;
         if (isEdit) {
           setEditForm((prev: any) => ({ ...prev, image_name: imageName, Image_URL: `/image/${imageName}` }));
         } else {
@@ -225,10 +234,8 @@ export default function Billboards() {
         }
       };
       reader.readAsDataURL(file);
-      
-      // In a real implementation, you would save the file to public/image folder here
-      // For now, we assume the user will manually place the image in public/image folder
-      toast.success(`تم اختيار الصورة: ${file.name}. يرجى وضع الصورة في مجلد public/image/`);
+
+      toast.success(`تم اختيار الصورة: ${file.name}. سيتم استخدام اسم الملف بناءً على اسم اللوحة.`);
     }
   };
 
@@ -272,6 +279,29 @@ export default function Billboards() {
     }
     setSaving(false);
   };
+
+  // Rename selected image automatically when name changes
+  useEffect(() => {
+    if (addForm.Billboard_Name && addForm.image_name) {
+      const ext = addForm.image_name.includes('.') ? addForm.image_name.substring(addForm.image_name.lastIndexOf('.') + 1) : 'jpg';
+      const sanitized = String(addForm.Billboard_Name).replace(/[^\w\u0600-\u06FF-]+/g, '_');
+      const imageName = `${sanitized}.${ext}`;
+      if (imageName !== addForm.image_name) {
+        setAddForm((prev:any) => ({ ...prev, image_name: imageName, Image_URL: `/image/${imageName}` }));
+      }
+    }
+  }, [addForm.Billboard_Name]);
+
+  useEffect(() => {
+    if (editForm.Billboard_Name && editForm.image_name) {
+      const ext = editForm.image_name.includes('.') ? editForm.image_name.substring(editForm.image_name.lastIndexOf('.') + 1) : 'jpg';
+      const sanitized = String(editForm.Billboard_Name).replace(/[^\w\u0600-\u06FF-]+/g, '_');
+      const imageName = `${sanitized}.${ext}`;
+      if (imageName !== editForm.image_name) {
+        setEditForm((prev:any) => ({ ...prev, image_name: imageName, Image_URL: `/image/${imageName}` }));
+      }
+    }
+  }, [editForm.Billboard_Name]);
 
   const addBillboard = async () => {
     // Validate required fields
@@ -352,6 +382,12 @@ export default function Billboards() {
   const uniqueAdTypes = [...new Set(billboards.map((b:any) => (b.Ad_Type ?? b['Ad Type'] ?? b.adType ?? '')).filter(Boolean))] as string[];
   const uniqueCustomers = [...new Set(billboards.map((b:any) => (b.Customer_Name ?? b.clientName ?? b.contract?.customer_name ?? '')).filter(Boolean))] as string[];
   const uniqueContractNumbers = [...new Set(billboards.map((b:any) => String(b.Contract_Number ?? b.contractNumber ?? '')).filter((v:string) => v && v !== 'undefined' && v !== 'null'))] as string[];
+
+  // Keep citiesList in sync with loaded billboards as a fallback
+  useEffect(() => {
+    const uniq = [...new Set(billboards.map((b:any) => (b.City || b.city)).filter(Boolean))];
+    if (uniq.length && (!citiesList.length || uniq.length !== citiesList.length)) setCitiesList(uniq as string[]);
+  }, [billboards]);
 
   const searched = searchBillboards(billboards, searchQuery);
   const filteredBillboards = searched.filter((billboard) => {
@@ -614,7 +650,7 @@ export default function Billboards() {
               <Select value={editForm.City || ''} onValueChange={(v) => setEditForm((p: any) => ({ ...p, City: v }))}>
                 <SelectTrigger><SelectValue placeholder="اختر المدينة" /></SelectTrigger>
                 <SelectContent>
-                  {cities.map((c) => (<SelectItem key={c} value={c as string}>{c}</SelectItem>))}
+                  {citiesList.map((c) => (<SelectItem key={c} value={c as string}>{c}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -665,6 +701,11 @@ export default function Billboards() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => handleImageSelect(e, true)}
+                />
+                <Input
+                  placeholder="أو أدخل رابط الصورة (اختياري)"
+                  value={editForm.Image_URL || ''}
+                  onChange={(e) => setEditForm((p: any) => ({ ...p, Image_URL: e.target.value }))}
                 />
                 {imagePreview && (
                   <div className="w-full h-48 bg-muted rounded-lg overflow-hidden">
@@ -746,7 +787,12 @@ export default function Billboards() {
             </div>
             <div>
               <Label>المدينة</Label>
-              <Input value={addForm.City || ''} onChange={(e) => setAddForm((p: any) => ({ ...p, City: e.target.value }))} />
+              <Select value={addForm.City || ''} onValueChange={(v) => setAddForm((p: any) => ({ ...p, City: v }))}>
+                <SelectTrigger><SelectValue placeholder="اختر المدينة" /></SelectTrigger>
+                <SelectContent>
+                  {citiesList.map((c) => (<SelectItem key={c} value={c as string}>{c}</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>البلدية * (مطلوب)</Label>
@@ -829,6 +875,11 @@ export default function Billboards() {
                   accept="image/*"
                   onChange={(e) => handleImageSelect(e, false)}
                 />
+                <Input
+                  placeholder="أو أدخل رابط الصورة (اختياري)"
+                  value={addForm.Image_URL || ''}
+                  onChange={(e) => setAddForm((p: any) => ({ ...p, Image_URL: e.target.value }))}
+                />
                 {imagePreview && (
                   <div className="w-full h-48 bg-muted rounded-lg overflow-hidden">
                     <img
@@ -873,11 +924,11 @@ export default function Billboards() {
             {/* Display generated name preview */}
             {addForm.Municipality && addForm.Level && addForm.Size && (
               <div className="sm:col-span-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <Label className="text-blue-800 font-medium">الاسم المقترح:</Label>
-                <div className="text-blue-600 font-mono text-lg mt-1">
-                  {generateBillboardName(addForm.Municipality, addForm.ID, addForm.Level, addForm.Size)}
-                </div>
+              <Label className="text-blue-800 font-medium">الاسم المقترح:</Label>
+              <div className="text-blue-600 font-mono text-lg mt-1">
+                {generateBillboardName(addForm.Municipality, addForm.ID)}
               </div>
+            </div>
             )}
 
           </div>
