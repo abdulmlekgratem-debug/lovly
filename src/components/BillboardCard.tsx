@@ -74,23 +74,34 @@ export const BillboardGridCard: React.FC<BillboardGridCardProps> = ({
   const daysRemaining = getDaysRemaining();
   const isNearExpiry = daysRemaining !== null && daysRemaining <= 20 && daysRemaining > 0;
 
+  const initialLocal = (billboard as any).image_name ? `/image/${(billboard as any).image_name}` : ((billboard.Image_URL && billboard.Image_URL.startsWith('/')) ? billboard.Image_URL : ((billboard.Image_URL && !billboard.Image_URL.startsWith('http')) ? `/image/${billboard.Image_URL}` : ''));
+  const remoteUrl = (billboard as any).Image_URL && (billboard as any).Image_URL.startsWith('http') ? (billboard as any).Image_URL : '';
+  const [imgSrc, setImgSrc] = React.useState<string>(initialLocal || remoteUrl || '');
+
   return (
     <Card className="overflow-hidden rounded-2xl bg-gradient-card border-0 shadow-card hover:shadow-luxury transition-smooth">
       <div className="relative">
         {/* صورة اللوحة */}
         <div className="aspect-video bg-muted relative overflow-hidden">
-          {billboard.Image_URL ? (
-            <img 
-              src={billboard.Image_URL} 
+          {imgSrc ? (
+            <img
+              src={imgSrc}
               alt={billboard.Billboard_Name}
               className="w-full h-full object-cover"
+              onError={() => {
+                if (remoteUrl && imgSrc !== remoteUrl) {
+                  setImgSrc(remoteUrl);
+                } else {
+                  setImgSrc('');
+                }
+              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/60">
-              <Building className="h-12 w-12 text-muted-foreground" />
+              <Building className="h-12 و-12 text-muted-foreground" />
             </div>
           )}
-          
+
           {/* حجم اللوحة */}
           <div className="absolute top-3 right-3">
             <Badge variant="secondary" className="bg-primary/90 text-primary-foreground">
