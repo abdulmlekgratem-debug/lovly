@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
-import { getPriceFor, CustomerType } from '@/data/pricing';
+import { getPriceFor, getDailyPriceFor, CustomerType, CUSTOMERS } from '@/data/pricing';
 
 export default function ContractCreate() {
   const navigate = useNavigate();
@@ -40,7 +40,9 @@ export default function ContractCreate() {
   const [adType, setAdType] = useState('');
   const [pricingCategory, setPricingCategory] = useState<string>('عادي');
   const [startDate, setStartDate] = useState('');
+  const [pricingMode, setPricingMode] = useState<'months' | 'days'>('months');
   const [durationMonths, setDurationMonths] = useState<number>(3);
+  const [durationDays, setDurationDays] = useState<number>(0);
   const [endDate, setEndDate] = useState('');
   const [rentCost, setRentCost] = useState<number>(0);
   const [userEditedRentCost, setUserEditedRentCost] = useState(false);
@@ -109,30 +111,51 @@ export default function ContractCreate() {
     [billboards]
   );
 
-  // compute end date when start or duration changes
+  // compute end date when start or duration changes (month = 30 days)
   useEffect(() => {
-    if (!startDate || !durationMonths) return;
+    if (!startDate) return;
     const d = new Date(startDate);
     const end = new Date(d);
-    end.setMonth(end.getMonth() + durationMonths);
+    if (pricingMode === 'months') {
+      const days = Math.max(0, Number(durationMonths || 0)) * 30;
+      end.setDate(end.getDate() + days);
+    } else {
+      const days = Math.max(0, Number(durationDays || 0));
+      end.setDate(end.getDate() + days);
+    }
     const iso = end.toISOString().split('T')[0];
     setEndDate(iso);
-  }, [startDate, durationMonths]);
+  }, [startDate, durationMonths, durationDays, pricingMode]);
 
-  // estimated price based on pricing tiers
+  // estimated price based on pricing tiers (supports months/days)
   const estimatedTotal = useMemo(() => {
-    const months = Number(durationMonths || 0);
-    if (!months) return 0;
     const sel = billboards.filter((b) => selected.includes(String((b as any).ID)));
-    return sel.reduce((acc, b) => {
-      const size = (b.size || (b as any).Size || '') as string;
-      const level = ((b as any).level || (b as any).Level) as any;
-      const price = getPriceFor(size, level, pricingCategory as CustomerType, months);
-      if (price !== null) return acc + price;
-      const monthly = Number((b as any).price) || 0;
-      return acc + monthly * months;
-    }, 0);
-  }, [billboards, selected, durationMonths, pricingCategory]);
+    if (pricingMode === 'months') {
+      const months = Math.max(0, Number(durationMonths || 0));
+      if (!months) return 0;
+      return sel.reduce((acc, b) => {
+        const size = (b.size || (b as any).Size || '') as string;
+        const level = ((b as any).level || (b as any).Level) as any;
+        const price = getPriceFor(size, level, pricingCategory as CustomerType, months);
+        if (price !== null) return acc + price;
+        const monthly = Number((b as any).price) || 0;
+        return acc + monthly * months;
+      }, 0);
+    } else {
+      const days = Math.max(0, Number(durationDays || 0));
+      if (!days) return 0;
+      return sel.reduce((acc, b) => {
+        const size = (b.size || (b as any).Size || '') as string;
+        const level = ((b as any).level || (b as any).Level) as any;
+        let daily = getDailyPriceFor(size, level, pricingCategory as CustomerType);
+        if (daily === null) {
+          const m1 = getPriceFor(size, level, pricingCategory as CustomerType, 1) || 0;
+          daily = m1 ? Math.round((m1 / 30) * 100) / 100 : 0;
+        }
+        return acc + (daily || 0) * days;
+      }, 0);
+    }
+  }, [billboards, selected, durationMonths, durationDays, pricingMode, pricingCategory]);
 
   const baseTotal = useMemo(() => (rentCost && rentCost > 0 ? rentCost : estimatedTotal), [rentCost, estimatedTotal]);
 
@@ -322,12 +345,23 @@ export default function ContractCreate() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {billboards.filter((b) => selected.includes(String((b as any).ID))).map((b) => {
-                    const months = Number(durationMonths || 0);
                     const size = (b as any).size || (b as any).Size || '';
                     const level = (b as any).level || (b as any).Level;
-                    const price = months ? getPriceFor(size as string, level as any, pricingCategory as CustomerType, months) : null;
-                    const fallback = (Number((b as any).price) || 0) * (months || 1);
-                    const totalForBoard = price !== null ? price : fallback;
+                    let totalForBoard = 0;
+                    if (pricingMode === 'months') {
+                      const months = Math.max(0, Number(durationMonths || 0));
+                      const price = months ? getPriceFor(size as string, level as any, pricingCategory as CustomerType, months) : null;
+                      const fallback = (Number((b as any).price) || 0) * (months || 1);
+                      totalForBoard = price !== null ? price : fallback;
+                    } else {
+                      const days = Math.max(0, Number(durationDays || 0));
+                      let daily = getDailyPriceFor(size as string, level as any, pricingCategory as CustomerType);
+                      if (daily === null) {
+                        const m1 = getPriceFor(size as string, level as any, pricingCategory as CustomerType, 1) || 0;
+                        daily = m1 ? Math.round((m1 / 30) * 100) / 100 : 0;
+                      }
+                      totalForBoard = (daily || 0) * days;
+                    }
                     return (
                       <Card key={(b as any).ID} className="overflow-hidden">
                         <CardContent className="p-0">
@@ -339,7 +373,7 @@ export default function ContractCreate() {
                               <div className="font-semibold">{(b as any).name || (b as any).Billboard_Name}</div>
                               <div className="text-xs text-muted-foreground">{(b as any).location || (b as any).Nearest_Landmark}</div>
                               <div className="text-xs">الحجم: {(b as any).size || (b as any).Size} • {(b as any).city || (b as any).City}</div>
-                              <div className="text-xs font-medium mt-1">السعر: {totalForBoard.toLocaleString('ar-LY')} د.ل {months ? `/${months} شهر` : ''}</div>
+                              <div className="text-xs font-medium mt-1">السعر: {totalForBoard.toLocaleString('ar-LY')} د.ل {pricingMode === 'months' ? `/${durationMonths} شهر` : `/${durationDays} يوم`}</div>
                             </div>
                             <Button size="sm" variant="destructive" onClick={() => removeSelected(String((b as any).ID))}>
                               <X className="h-4 w-4" />
@@ -398,6 +432,26 @@ export default function ContractCreate() {
                     <SelectItem value="rented">المؤجرة فقط</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={pricingCategory} onValueChange={setPricingCategory}>
+                  <SelectTrigger className="w-[160px]"><SelectValue placeholder="فئة السعر" /></SelectTrigger>
+                  <SelectContent>
+                    {CUSTOMERS.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={pricingMode} onValueChange={(v)=>setPricingMode(v as any)}>
+                  <SelectTrigger className="w-[140px]"><SelectValue placeholder="وحدة الحساب" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="months">بالشهر</SelectItem>
+                    <SelectItem value="days">باليوم</SelectItem>
+                  </SelectContent>
+                </Select>
+                {pricingMode === 'months' ? (
+                  <Input type="number" min={0} className="w-[120px]" value={durationMonths} onChange={(e)=> setDurationMonths(Number(e.target.value||0))} placeholder="الأشهر" />
+                ) : (
+                  <Input type="number" min={0} className="w-[120px]" value={durationDays} onChange={(e)=> setDurationDays(Number(e.target.value||0))} placeholder="الأيام" />
+                )}
               </div>
             </CardContent>
           </Card>
