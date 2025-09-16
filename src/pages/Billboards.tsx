@@ -375,7 +375,7 @@ export default function Billboards() {
     fetchData();
   }, []);
 
-  const cities = [...new Set(billboards.map(b => b.city).filter(Boolean))];
+  const cities = [...new Set(billboards.map(b => (b as any).City || b.city).filter(Boolean))];
   const billboardSizes = [...new Set(billboards.map(b => (b as any).Size || b.size).filter(Boolean))];
   const billboardMunicipalities = [...new Set(billboards.map(b => (b as any).Municipality || (b as any).municipality).filter(Boolean))];
   const districts = [...new Set(billboards.map(b => (b as any).District || (b as any).district).filter(Boolean))];
@@ -394,8 +394,8 @@ export default function Billboards() {
     const statusValue = String(((billboard as any).Status ?? (billboard as any).status ?? '')).trim();
     const statusLower = statusValue.toLowerCase();
     const hasContract = !!(((billboard as any).Contract_Number ?? (billboard as any).contractNumber));
-    const isAvailable = statusLower === 'available' || statusValue === 'متاح' || !hasContract;
-    const isBooked = statusLower === 'rented' || statusValue === 'مؤجر' || statusValue === 'محجوز' || (hasContract && !isAvailable);
+    const isAvailable = (statusLower === 'available' || statusValue === 'متاح') && !hasContract;
+    const isBooked = (statusLower === 'rented' || statusValue === 'مؤجر' || statusValue === 'محجوز') || hasContract;
     let isNearExpiry = false;
     const end = (billboard as any).Rent_End_Date ?? (billboard as any).rent_end_date;
     if (end) {
@@ -655,7 +655,7 @@ export default function Billboards() {
               </Select>
             </div>
             <div className="sm:col-span-2">
-              <Label>أقرب معلم</Label>
+              <Label>أقر�� معلم</Label>
               <Input value={editForm.Nearest_Landmark || ''} onChange={(e) => setEditForm((p: any) => ({ ...p, Nearest_Landmark: e.target.value }))} />
             </div>
             <div>
@@ -734,7 +734,7 @@ export default function Billboards() {
             {editForm.is_partnership && (
               <>
                 <div className="sm:col-span-2">
-                  <Label>الشركات المشاركة (فصل بالفواصل)</Label>
+                  <Label>الشركات المشاركة (فصل بالف��اصل)</Label>
                   <Input value={(Array.isArray(editForm.partner_companies)? editForm.partner_companies.join(', ') : editForm.partner_companies || '')} onChange={(e)=> setEditForm((p:any)=>({...p, partner_companies: e.target.value}))} />
                 </div>
                 <div>
@@ -814,7 +814,7 @@ export default function Billboards() {
                   value={addForm.Size || ''} 
                   onValueChange={(v) => {
                     if (v === '__add_new__') {
-                      const newSize = prompt('أدخل المقاس الجديد:');
+                      const newSize = prompt('أدخل ال��قاس الجديد:');
                       if (newSize && newSize.trim()) {
                         addSizeIfNew(newSize.trim());
                         setAddForm((p: any) => ({ ...p, Size: newSize.trim() }));
