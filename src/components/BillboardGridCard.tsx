@@ -77,24 +77,35 @@ export const BillboardGridCard: React.FC<BillboardGridCardProps> = ({
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
 
+  const initialLocal = (billboard as any).image_name ? `/image/${(billboard as any).image_name}` : ((billboard.Image_URL && billboard.Image_URL.startsWith('/')) ? billboard.Image_URL : ((billboard.Image_URL && !billboard.Image_URL.startsWith('http')) ? `/image/${billboard.Image_URL}` : ''));
+  const remoteUrl = (billboard as any).Image_URL && (billboard as any).Image_URL.startsWith('http') ? (billboard as any).Image_URL : '';
+  const [imgSrc, setImgSrc] = React.useState<string>(initialLocal || remoteUrl || '');
+
   return (
     <Card className="overflow-hidden rounded-2xl bg-gradient-card border-0 shadow-card hover:shadow-luxury transition-smooth">
       <div className="relative">
         {/* صورة اللوحة */}
         <div className="aspect-video bg-muted relative overflow-hidden">
-          {billboard.Image_URL ? (
+          {imgSrc ? (
             <img
-              src={billboard.Image_URL}
+              src={imgSrc}
               alt={billboard.Billboard_Name}
               className="w-full h-full object-cover cursor-zoom-in"
               onClick={() => setPreviewOpen(true)}
+              onError={(e) => {
+                if (remoteUrl && imgSrc !== remoteUrl) {
+                  setImgSrc(remoteUrl);
+                } else {
+                  setImgSrc('');
+                }
+              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/60">
               <Building className="h-12 w-12 text-muted-foreground" />
             </div>
           )}
-          
+
           {/* حجم اللوحة */}
           <div className="absolute top-3 right-3">
             <Badge variant="secondary" className="bg-primary/90 text-primary-foreground">
@@ -124,7 +135,7 @@ export const BillboardGridCard: React.FC<BillboardGridCardProps> = ({
         </div>
 
         <CardContent className="p-4">
-          {/* معرف اللوحة */}
+          {/* ��عرف اللوحة */}
           <div className="mb-3">
             <h3 className="font-extrabold text-2xl md:text-3xl text-foreground tracking-tight">
               {billboard.Billboard_Name || `لوحة رقم ${billboard.ID}`}
@@ -320,8 +331,8 @@ export const BillboardGridCard: React.FC<BillboardGridCardProps> = ({
       {/* Image Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-4xl p-0">
-          {billboard.Image_URL ? (
-            <img src={billboard.Image_URL} alt={billboard.Billboard_Name} className="w-full h-auto object-contain" />
+          {imgSrc ? (
+            <img src={imgSrc} alt={billboard.Billboard_Name} className="w-full h-auto object-contain" />
           ) : null}
         </DialogContent>
       </Dialog>
