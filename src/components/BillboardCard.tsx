@@ -98,7 +98,7 @@ export const BillboardGridCard: React.FC<BillboardGridCardProps> = ({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/60">
-              <Building className="h-12 و-12 text-muted-foreground" />
+              <Building className="h-12 w-12 text-muted-foreground" />
             </div>
           )}
 
