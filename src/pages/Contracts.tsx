@@ -710,7 +710,7 @@ export default function Contracts() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handlePrintInstallation(contract)}
+                          onClick={() => handlePrintInstallationNew(contract)}
                           className="h-8 px-2 gap-1"
                           title="طباعة تركيب (صفحة اللوحات فقط بدون أسعار)"
                         >
@@ -749,7 +749,7 @@ export default function Contracts() {
             <div className="text-center py-8">
               <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">لا توجد نتائج</h3>
-              <p className="text-muted-foreground">لم يتم العثور على عقود تطابق معايير البحث</p>
+              <p className="text-muted-foreground">لم ��تم العثور على عقود تطابق معايير البحث</p>
             </div>
           )}
 
