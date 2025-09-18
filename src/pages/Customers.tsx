@@ -768,7 +768,7 @@ export default function Customers() {
                     <TableCell className="text-right text-red-600 font-semibold">{(c.totalRent - c.totalPaid).toLocaleString('ar-LY')} د.ل</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => openCustomer(c.id)}>عرض فواتير الزبون</Button>
+                        <Button size="sm" onClick={() => { const id = typeof c.id === 'string' ? c.id : String(c.id); const url = `/admin/customer-billing?id=${encodeURIComponent(id)}&name=${encodeURIComponent(c.name)}`; window.history.pushState({}, '', url); window.dispatchEvent(new PopStateEvent('popstate')); }}>عرض فواتير</Button>
                         <Button size="sm" variant="outline" onClick={() => { 
                           setEditingCustomerId(c.id); 
                           setCustomerNameInput(c.name); 
