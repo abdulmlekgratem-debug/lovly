@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
 import { Edit, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Billboard } from '@/types';
 import { fetchAllBillboards } from '@/services/supabaseService';
 import { Select as UISelect, SelectContent as UISelectContent, SelectItem as UISelectItem, SelectTrigger as UISelectTrigger, SelectValue as UISelectValue } from '@/components/ui/select';
@@ -47,6 +48,7 @@ interface CustomerSummary {
 
 export default function Customers() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const navigate = useNavigate();
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [customers, setCustomers] = useState<{id:string; name:string; phone?: string | null; company?: string | null}[]>([]);
   const [search, setSearch] = useState('');
@@ -752,7 +754,7 @@ export default function Customers() {
                   <TableHead>عدد العقود</TableHead>
                   <TableHead>إجمالي الإيجار</TableHead>
                   <TableHead>المدفوع</TableHead>
-                  <TableHead>المتبقي</TableHead>
+                  <TableHead>المتب��ي</TableHead>
                   <TableHead>إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -768,7 +770,7 @@ export default function Customers() {
                     <TableCell className="text-right text-red-600 font-semibold">{(c.totalRent - c.totalPaid).toLocaleString('ar-LY')} د.ل</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => { const id = typeof c.id === 'string' ? c.id : String(c.id); const url = `/admin/customer-billing?id=${encodeURIComponent(id)}&name=${encodeURIComponent(c.name)}`; window.history.pushState({}, '', url); window.dispatchEvent(new PopStateEvent('popstate')); }}>عرض فواتير</Button>
+                        <Button size="sm" onClick={() => { const id = typeof c.id === 'string' ? c.id : String(c.id); navigate(`/admin/customer-billing?id=${encodeURIComponent(id)}&name=${encodeURIComponent(c.name)}`); }}>عرض فواتير</Button>
                         <Button size="sm" variant="outline" onClick={() => { 
                           setEditingCustomerId(c.id); 
                           setCustomerNameInput(c.name); 
