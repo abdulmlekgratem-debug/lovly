@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/sonner';
-import { Plus, Eye, Edit, Trash2, Calendar, User, DollarSign, Search, Filter, Building, AlertCircle, Clock, CheckCircle, Printer } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Calendar, User, DollarSign, Search, Filter, Building, AlertCircle, Clock, CheckCircle, Printer, RefreshCcw, Hammer } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   createContract,
@@ -56,6 +56,12 @@ export default function Contracts() {
     billboard_ids: []
   });
   const [pricingCategory, setPricingCategory] = useState<CustomerType>('عادي');
+
+  // Renew state
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewSource, setRenewSource] = useState<Contract | null>(null);
+  const [renewStart, setRenewStart] = useState<string>('');
+  const [renewEnd, setRenewEnd] = useState<string>('');
   const [durationMonths, setDurationMonths] = useState<number>(3);
 
   const [bbSearch, setBbSearch] = useState('');
@@ -190,6 +196,99 @@ export default function Contracts() {
     }
   };
 
+  const handlePrintInstallation = async (contract: Contract) => {
+    try {
+      const data = await getContractWithBillboards(String(contract.id));
+      const boards: any[] = Array.isArray((data as any).billboards) ? (data as any).billboards : [];
+      if (!boards.length) { toast.warning('لا توجد لوحات للطباعة'); return; }
+
+      const norm = (b: any) => {
+        const id = String(b.ID ?? b.id ?? '');
+        const image = String(b.image ?? b.Image ?? b.billboard_image ?? b.Image_URL ?? b['@IMAGE'] ?? b.image_url ?? b.imageUrl ?? '');
+        const municipality = String(b.Municipality ?? b.municipality ?? b.City_Council ?? b.city_council ?? '');
+        const district = String(b.District ?? b.district ?? b.Area ?? b.area ?? '');
+        const landmark = String(b.Nearest_Landmark ?? b.nearest_landmark ?? b.location ?? b.Location ?? '');
+        const size = String(b.Size ?? b.size ?? b['Billboard size'] ?? '');
+        const faces = String(b.Faces ?? b.faces ?? b.Number_of_Faces ?? b['Number of Faces'] ?? '');
+        let coords: string = String(b.GPS_Coordinates ?? b.coords ?? b.coordinates ?? b.GPS ?? '');
+        if (!coords || coords === 'undefined' || coords === 'null') {
+          const lat = b.Latitude ?? b.lat ?? b.latitude; const lng = b.Longitude ?? b.lng ?? b.longitude; if (lat != null && lng != null) coords = `${lat},${lng}`;
+        }
+        const mapLink = coords ? `https://www.google.com/maps?q=${encodeURIComponent(coords)}` : '';
+        return { id, image, municipality, district, landmark, size, faces, mapLink };
+      };
+
+      const rows = boards.map(norm);
+      const ROWS_PER_PAGE = 12;
+      const pages = rows.reduce((acc: any[][], r, i) => { const p = Math.floor(i/ROWS_PER_PAGE); (acc[p] ||= []).push(r); return acc; }, [] as any[][]);
+      const tablePagesHtml = pages.map((pageRows) => `
+        <div class=\"template-container page\">
+          <img src=\"/bgc2.jpg\" alt=\"خلفية جدول اللوحات\" class=\"template-image\" />
+          <div class=\"table-area\">
+            <table class=\"btable\" dir=\"rtl\">
+              <colgroup>
+                <col style=\"width:10%\" />
+                <col style=\"width:16%\" />
+                <col style=\"width:14%\" />
+                <col style=\"width:14%\" />
+                <col style=\"width:22%\" />
+                <col style=\"width:12%\" />
+                <col style=\"width:12%\" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <td>رقم</td>
+                  <td>صورة</td>
+                  <td>بلدية</td>
+                  <td>منطقة</td>
+                  <td>أقرب معلم</td>
+                  <td>الحجم</td>
+                  <td>الوجوه</td>
+                </tr>
+              </thead>
+              <tbody>
+                ${pageRows.map((r:any) => `
+                  <tr>
+                    <td class=\"c-num\">${r.id}</td>
+                    <td class=\"c-img\">${r.image ? `<img src=\"${r.image}\" alt=\"صورة اللوحة\" />` : ''}</td>
+                    <td>${r.municipality}</td>
+                    <td>${r.district}</td>
+                    <td>${r.landmark}</td>
+                    <td>${r.size}</td>
+                    <td>${r.faces}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `).join('');
+
+      const html = `<!DOCTYPE html><html dir=\"rtl\" lang=\"ar\"><head><meta charset=\"UTF-8\" />
+        <title>كشف تركيب للعقد ${String(contract.id)}</title>
+        <style>
+          *{margin:0;padding:0;box-sizing:border-box}
+          body{font-family:'Noto Sans Arabic',Arial,sans-serif;background:#fff;color:#000}
+          .template-container{position:relative;width:210mm;height:297mm;page-break-after:always;overflow:hidden}
+          .template-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+          .table-area{position:absolute;right:20mm;left:20mm;top:80mm;bottom:32mm;z-index:20}
+          .btable{width:100%;border-collapse:collapse;font-size:12pt}
+          .btable td{border:1px solid #000;padding:4pt 3pt;vertical-align:middle}
+          .c-img img{width:38mm;height:22mm;object-fit:cover;display:block;margin:0 auto}
+          .c-num{text-align:center;font-weight:700}
+          @page{size:A4;margin:0}
+          @media print{.controls{display:none}}
+          .controls{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:99}
+          .controls button{padding:8px 14px;border:0;border-radius:6px;background:#0066cc;color:#fff;cursor:pointer}
+        </style></head><body>${tablePagesHtml}<div class=\"controls\"><button onclick=\"window.print()\">طباعة</button></div></body></html>`;
+
+      const w = window.open('', '_blank'); if (!w) { toast.error('فشل فتح نافذة الطباعة'); return; }
+      w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 600);
+    } catch (e) {
+      console.error(e);
+      toast.error('فشل طباعة التركيب');
+    }
+  };
+
   const getContractStatus = (contract: Contract) => {
     const today = new Date();
     const endDate = new Date(contract.end_date || '');
@@ -292,7 +391,7 @@ export default function Contracts() {
     .map((id) => availableBillboards.find((b) => b.id === id))
     .filter(Boolean)) as Billboard[];
 
-  // حساب التكلفة التقديرية حسب باقات الأسعار والفئة
+  // حساب التكلفة التقديرية حسب باقات الأسعار والف��ة
   const estimatedTotal = useMemo(() => {
     const months = Number(durationMonths || 0);
     if (!months) return 0;
@@ -581,6 +680,7 @@ export default function Contracts() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>رقم العقد</TableHead>
                   <TableHead>اسم الزبون</TableHead>
                   <TableHead>نوع الإعلان</TableHead>
                   <TableHead>تاريخ البداية</TableHead>
@@ -593,6 +693,7 @@ export default function Contracts() {
               <TableBody>
                 {filteredContracts.map((contract) => (
                   <TableRow key={contract.id} className="hover:bg-card/50 transition-colors">
+                    <TableCell className="font-semibold">{String((contract as any).Contract_Number ?? (contract as any)['Contract Number'] ?? contract.id)}</TableCell>
                     <TableCell className="font-medium">{contract.customer_name}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="gap-1">
@@ -648,6 +749,36 @@ export default function Contracts() {
                         >
                           <Printer className="h-4 w-4" />
                           طباعة
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePrintInstallation(contract)}
+                          className="h-8 px-2 gap-1"
+                          title="طباعة تركيب (صفحة اللوحات فقط بدون أسعار)"
+                        >
+                          <Hammer className="h-4 w-4" />
+                          تركيب
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            const s = contract.start_date || (contract as any)['Contract Date'] || '';
+                            const e = contract.end_date || (contract as any)['End Date'] || '';
+                            let months = 1;
+                            try {
+                              if (s && e) { const sd = new Date(s); const ed = new Date(e); const diffDays = Math.max(1, Math.ceil(Math.abs(ed.getTime() - sd.getTime())/86400000)); months = Math.max(1, Math.round(diffDays/30)); }
+                            } catch {}
+                            const start = new Date();
+                            const end = new Date(start); end.setMonth(end.getMonth() + months);
+                            setRenewSource(contract); setRenewStart(start.toISOString().slice(0,10)); setRenewEnd(end.toISOString().slice(0,10)); setRenewOpen(true);
+                          }}
+                          className="h-8 px-2 gap-1"
+                          title="تجديد العقد بنفس اللوحات"
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                          تجديد
                         </Button>
                       </div>
                     </TableCell>
@@ -780,6 +911,43 @@ export default function Contracts() {
         onOpenChange={setPdfOpen}
         contract={selectedContractForPDF}
       />
+
+      {/* Renew Dialog */}
+      <Dialog open={renewOpen} onOpenChange={setRenewOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تجديد العقد #{String(renewSource?.id || '')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>تاريخ البداية الجديد</Label>
+                <Input type="date" value={renewStart} onChange={(e) => setRenewStart(e.target.value)} />
+              </div>
+              <div>
+                <Label>تاريخ النهاية الجديد</Label>
+                <Input type="date" value={renewEnd} onChange={(e) => setRenewEnd(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRenewOpen(false)}>إلغاء</Button>
+              <Button onClick={async () => {
+                if (!renewSource) return;
+                try {
+                  const { renewContract } = await import('@/services/contractService');
+                  const created = await renewContract(String(renewSource.id), { start_date: renewStart, end_date: renewEnd, keep_cost: true });
+                  toast.success(`تم إنشاء عقد جديد برقم ${String(created?.Contract_Number ?? created?.id ?? '')}`);
+                  setRenewOpen(false); setRenewSource(null); setRenewStart(''); setRenewEnd('');
+                  loadData();
+                } catch (e) {
+                  console.error(e);
+                  toast.error('فشل تجديد العقد');
+                }
+              }}>تجديد</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
