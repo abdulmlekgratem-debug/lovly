@@ -24,7 +24,6 @@ import {
   ContractCreate
 } from '@/services/contractService';
 import { Billboard } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
 import { ContractPDFDialog } from '@/components/Contract';
 
 export default function Contracts() {
@@ -42,10 +41,6 @@ export default function Contracts() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState<string>('all');
 
-  const [customersList, setCustomersList] = useState<{id:string; name:string}[]>([]);
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignContractNumber, setAssignContractNumber] = useState<string | null>(null);
-  const [assignCustomerId, setAssignCustomerId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<ContractCreate>({
     customer_name: '',
@@ -73,13 +68,6 @@ export default function Contracts() {
       const billboardsData = await getAvailableBillboards();
       setContracts(contractsData as Contract[]);
       setAvailableBillboards(billboardsData || []);
-      // load customers list
-      try {
-        const { data: cdata, error: cErr } = await supabase.from('customers').select('id,name').order('name', { ascending: true });
-        if (!cErr && Array.isArray(cdata)) setCustomersList(cdata as any);
-      } catch (e) {
-        console.warn('failed to load customers list', e);
-      }
     } catch (error) {
       console.error('خطأ في تحميل البيانات:', error);
       toast.error('فشل في تحميل البيانات');
@@ -160,30 +148,7 @@ export default function Contracts() {
     }
   };
 
-  const openAssignDialog = (contractNumber: string, currentCustomerId?: string | null) => {
-    setAssignContractNumber(contractNumber);
-    setAssignCustomerId(currentCustomerId ?? null);
-    setAssignOpen(true);
-  };
 
-  const saveAssign = async () => {
-    if (!assignContractNumber || !assignCustomerId) {
-      toast.error('اختر زبونًا ثم احفظ');
-      return;
-    }
-    const customer = customersList.find(c => c.id === assignCustomerId);
-    try {
-      await updateContract(assignContractNumber, { customer_id: assignCustomerId, 'Customer Name': customer?.name || '' });
-      toast.success('تم تحديث العميل للعقد');
-      setAssignOpen(false);
-      setAssignContractNumber(null);
-      setAssignCustomerId(null);
-      loadData();
-    } catch (e) {
-      console.error(e);
-      toast.error('فشل تحديث العقد');
-    }
-  };
 
   const handlePrintContract = async (contract: Contract) => {
     try {
@@ -285,7 +250,7 @@ export default function Contracts() {
       w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 600);
     } catch (e) {
       console.error(e);
-      toast.error('فشل طباعة التركيب');
+      toast.error('فشل طباعة الترك��ب');
     }
   };
 
@@ -355,7 +320,7 @@ export default function Contracts() {
     return matchesSearch && matchesCustomer && matchesStatus;
   });
 
-  // تقسيم العقود حسب الحالة
+  // تقسيم ال��قود حسب الحالة
   const contractStats = {
     total: contracts.length,
     active: contracts.filter(c => {
@@ -422,7 +387,7 @@ export default function Contracts() {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* العنوان والأزرار */}
+      {/* العنوان والأزر��ر */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">إدارة العقود</h1>
@@ -727,14 +692,6 @@ export default function Contracts() {
                         </Button>
                         <Button
                           size="sm"
-                          variant="ghost"
-                          onClick={() => openAssignDialog(String((contract as any).Contract_Number ?? contract.id), (contract as any).customer_id ?? null)}
-                          className="h-8 px-2"
-                        >
-                          تعيين زبون
-                        </Button>
-                        <Button
-                          size="sm"
                           variant="destructive"
                           onClick={() => handleDeleteContract(String(contract.id))}
                           className="h-8 w-8 p-0"
@@ -881,29 +838,6 @@ export default function Contracts() {
         </DialogContent>
       </Dialog>
 
-      {/* Assign customer dialog */}
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>تعيين زبون للعقد {assignContractNumber}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 p-2">
-            <Select value={assignCustomerId || '__none'} onValueChange={(v) => setAssignCustomerId(v === '__none' ? null : v)}>
-              <SelectTrigger><SelectValue placeholder="اختر زبون" /></SelectTrigger>
-              <SelectContent className="max-h-60">
-                <SelectItem value="__none">اختيار</SelectItem>
-                {customersList.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setAssignOpen(false); setAssignCustomerId(null); setAssignContractNumber(null); }}>إلغاء</Button>
-              <Button onClick={saveAssign}>حفظ</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* PDF Dialog */}
       <ContractPDFDialog
