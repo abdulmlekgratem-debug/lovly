@@ -182,6 +182,16 @@ const App = () => (
               }
             />
             <Route
+              path="/admin/customer-billing"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <MainLayout>
+                    <CustomerBilling />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/customer-merge"
               element={
                 <ProtectedRoute requireAdmin>
