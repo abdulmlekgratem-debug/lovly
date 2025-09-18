@@ -254,6 +254,120 @@ export default function Contracts() {
     }
   };
 
+  const handlePrintInstallationNew = async (contract: Contract) => {
+    try {
+      const data = await getContractWithBillboards(String(contract.id));
+      const boards: any[] = Array.isArray((data as any).billboards) ? (data as any).billboards : [];
+      if (!boards.length) { toast.warning('لا توجد لوحات للطباعة'); return; }
+
+      const norm = (b: any) => {
+        const id = String(b.ID ?? b.id ?? '');
+        const name = String(b.Billboard_Name ?? b.name ?? id);
+        const image = String(b.image ?? b.Image ?? b.billboard_image ?? b.Image_URL ?? b['@IMAGE'] ?? b.image_url ?? b.imageUrl ?? '');
+        const municipality = String(b.Municipality ?? b.municipality ?? b.City_Council ?? b.city_council ?? '');
+        const district = String(b.District ?? b.district ?? b.Area ?? b.area ?? '');
+        const landmark = String(b.Nearest_Landmark ?? b.nearest_landmark ?? b.location ?? b.Location ?? '');
+        const size = String(b.Size ?? b.size ?? b['Billboard size'] ?? '');
+        const faces = String(b.Faces ?? b.faces ?? b.Number_of_Faces ?? b['Number of Faces'] ?? '');
+        let coords: string = String(b.GPS_Coordinates ?? b.coords ?? b.coordinates ?? b.GPS ?? '');
+        if (!coords || coords === 'undefined' || coords === 'null') {
+          const lat = b.Latitude ?? b.lat ?? b.latitude; const lng = b.Longitude ?? b.lng ?? b.longitude; if (lat != null && lng != null) coords = `${lat},${lng}`;
+        }
+        const mapLink = coords ? `https://www.google.com/maps?q=${encodeURIComponent(coords)}` : '';
+        return { id, name, image, municipality, district, landmark, size, faces, mapLink };
+      };
+
+      const normalized = boards.map(norm);
+      const START_Y = 63.53; // mm
+      const ROW_H = 13.818; // mm
+      const PAGE_H = 297; // A4 height in mm
+      const ROWS_PER_PAGE = Math.max(1, Math.floor((PAGE_H - START_Y) / ROW_H));
+
+      const tablePagesHtml = normalized.length
+        ? normalized
+            .reduce((acc: any[][], r, i) => { const p = Math.floor(i / ROWS_PER_PAGE); (acc[p] ||= []).push(r); return acc; }, [])
+            .map((pageRows) => `
+              <div class="template-container page">
+                <img src="/bgc2.svg" alt="خلفية جدول اللوحات" class="template-image" onerror="console.warn('Failed to load bgc2.svg')" />
+                <div class="table-area">
+                  <table class="btable" dir="rtl">
+                    <colgroup>
+                      <col style="width:22mm" />
+                      <col style="width:22mm" />
+                      <col style="width:22mm" />
+                      <col style="width:22mm" />
+                      <col style="width:50mm" />
+                      <col style="width:18mm" />
+                      <col style="width:18mm" />
+                      <col style="width:20mm" />
+                    </colgroup>
+                    <tbody>
+                      ${pageRows
+                        .map(
+                          (r) => `
+                          <tr>
+                            <td class="c-name">${r.name || r.id}</td>
+                            <td class="c-img">${r.image ? `<img src="${r.image}" alt="صورة اللوحة" onerror="this.style.display='none'" />` : ''}</td>
+                            <td>${r.municipality}</td>
+                            <td>${r.district}</td>
+                            <td>${r.landmark}</td>
+                            <td>${r.size}</td>
+                            <td>${r.faces}</td>
+                            <td>${r.mapLink ? `<a href="${r.mapLink}" target="_blank" rel="noopener">اضغط هنا</a>` : ''}</td>
+                          </tr>`
+                        )
+                        .join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            `)
+            .join('')
+        : '';
+
+      const html = `<!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+          <meta charset="UTF-8">
+          <title>كشف تركيب - العقد ${String(contract.id)}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
+            @font-face { font-family: 'Doran'; src: url('/Doran-Regular.otf') format('opentype'); font-weight: 400; font-style: normal; font-display: swap; }
+            @font-face { font-family: 'Doran'; src: url('/Doran-Bold.otf') format('opentype'); font-weight: 700; font-style: normal; font-display: swap; }
+            * { margin: 0 !important; padding: 0 !important; box-sizing: border-box; }
+            html, body { width: 100% !important; height: 100% !important; overflow: hidden; font-family: 'Noto Sans Arabic','Doran','Arial Unicode MS',Arial,sans-serif; direction: rtl; text-align: right; background: #fff; color: #000; }
+            .template-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; display: block; }
+            .template-image { position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; object-position: center; z-index: 1; display: block; }
+            .page { page-break-after: always; page-break-inside: avoid; }
+            .table-area { position: absolute; top: 63.53mm; left: 12.8765mm; right: 12.8765mm; z-index: 20; }
+            .btable { width: 100%; border-collapse: collapse; border-spacing: 0; font-size: 8px; font-family: 'Doran','Noto Sans Arabic','Arial Unicode MS',Arial,sans-serif; table-layout: fixed; border: 0.2mm solid #000; }
+            .btable tr { height: 13.818mm; }
+            .btable td { border: 0.2mm solid #000; padding: 0 1mm; vertical-align: middle; text-align: center; background: transparent; color: #000; white-space: normal; word-break: break-word; overflow: hidden; }
+            .c-img img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
+            @media print { html, body { width: 210mm !important; min-height: 297mm !important; height: auto !important; margin:0 !important; padding:0 !important; overflow: visible !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .template-container { width: 210mm !important; height: 297mm !important; position: relative !important; }
+              .template-image { width: 210mm !important; height: 297mm !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              @page { size: A4; margin: 0 !important; padding: 0 !important; } .controls{display:none!important}
+            }
+            .controls{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:99}
+            .controls button{padding:8px 14px;border:0;border-radius:6px;background:#0066cc;color:#fff;cursor:pointer}
+          </style>
+        </head>
+        <body>
+          ${tablePagesHtml}
+          <div class="controls"><button onclick="window.print()">طباعة</button></div>
+        </body>
+        </html>`;
+
+      const w = window.open('', '_blank');
+      if (!w) { toast.error('فشل فتح نافذة الطباعة'); return; }
+      w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 600);
+    } catch (e) {
+      console.error(e);
+      toast.error('فشل طباعة التركيب');
+    }
+  };
+
   const getContractStatus = (contract: Contract) => {
     const today = new Date();
     const endDate = new Date(contract.end_date || '');
@@ -749,7 +863,7 @@ export default function Contracts() {
             <div className="text-center py-8">
               <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">لا توجد نتائج</h3>
-              <p className="text-muted-foreground">لم ��تم العثور على عقود تطابق معايير البحث</p>
+              <p className="text-muted-foreground">لم يتم العثور على عقود تطابق معايير البحث</p>
             </div>
           )}
 
@@ -800,7 +914,7 @@ export default function Contracts() {
                     <div className="space-y-2">
                       <p><strong>تار  خ البداية:</strong> {selectedContract.start_date ? new Date(selectedContract.start_date).toLocaleDateString('ar') : '—'}</p>
                       <p><strong>تاريخ النهاية:</strong> {selectedContract.end_date ? new Date(selectedContract.end_date).toLocaleDateString('ar') : '—'}</p>
-                      <p><strong>التكلفة الإجمالية:</strong> {(selectedContract.rent_cost || 0).toLocaleString()} د.ل</p>
+                      <p><strong>التكلفة الإ��مالية:</strong> {(selectedContract.rent_cost || 0).toLocaleString()} د.ل</p>
                     </div>
                   </CardContent>
                 </Card>
