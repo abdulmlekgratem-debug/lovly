@@ -25,6 +25,7 @@ import BookingRequests from "./pages/BookingRequests";
 import SharedBillboards from "./pages/SharedBillboards";
 import SharedCompanies from "./pages/SharedCompanies";
 import Payments from "./pages/Payments";
+import CustomerBilling from "./pages/CustomerBilling";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
