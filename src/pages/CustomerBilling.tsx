@@ -252,23 +252,94 @@ export default function CustomerBilling() {
   };
 
   const printStatement = () => {
-    const rows = payments.slice().sort((a,b)=> (new Date(a.paid_at||'').getTime()) - (new Date(b.paid_at||'').getTime()));
+    type Entry = { date: Date; desc: string; debit: number; credit: number };
+    const entries: Entry[] = [];
+    // Add contracts as debit entries
+    for (const c of contracts) {
+      const d = c['Start Date'] ? new Date(c['Start Date'] as any) : (c['End Date'] ? new Date(c['End Date'] as any) : new Date());
+      entries.push({
+        date: d,
+        desc: `قيمة العقد رقم ${String(c.Contract_Number||'')} - ${(c['Ad Type']||'')}`,
+        debit: Number(c['Total Rent']) || 0,
+        credit: 0,
+      });
+    }
+    // Add payments
+    for (const p of payments) {
+      const dt = p.paid_at ? new Date(p.paid_at) : new Date();
+      const typeLabel = p.entry_type === 'account_payment' ? 'دفعة على الحساب'
+        : p.entry_type === 'receipt' ? 'إيصال'
+        : p.entry_type === 'debt' ? 'دين سابق'
+        : (p.entry_type || 'حركة');
+      const contractLabel = p.contract_number ? ` - عقد ${p.contract_number}` : ' - الحساب العام';
+      const isDebit = p.entry_type === 'debt' || p.entry_type === 'invoice';
+      const amt = Number(p.amount) || 0;
+      entries.push({
+        date: dt,
+        desc: `${typeLabel}${contractLabel}${p.reference ? ` - مرجع: ${p.reference}` : ''}${p.notes ? ` - ملاحظات: ${p.notes}` : ''}`,
+        debit: isDebit ? amt : 0,
+        credit: !isDebit ? amt : 0,
+      });
+    }
+    // Sort by date
+    entries.sort((a,b)=> a.date.getTime() - b.date.getTime());
+
+    // Build rows with running balance
+    let running = 0;
+    const rowsHtml = entries.map(e => {
+      running += e.debit - e.credit;
+      return `<tr>
+        <td>${e.date.toLocaleDateString('ar-LY')}</td>
+        <td class="right">${e.desc}</td>
+        <td>${e.debit ? e.debit.toLocaleString('ar-LY') : ''}</td>
+        <td>${e.credit ? e.credit.toLocaleString('ar-LY') : ''}</td>
+        <td>${running.toLocaleString('ar-LY')}</td>
+      </tr>`;
+    }).join('');
+
+    const totalDebit = entries.reduce((s,e)=> s+e.debit, 0);
+    const totalCredit = entries.reduce((s,e)=> s+e.credit, 0);
+
     const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8" />
       <title>كشف حساب - ${customerName}</title>
-      <style>body{font-family:Arial,sans-serif;padding:20px;max-width:900px;margin:auto}
-      h1{font-size:22px;margin:0 0 10px} table{width:100%;border-collapse:collapse;margin-top:10px}
-      th,td{border:1px solid #ddd;padding:8px;text-align:center} .right{text-align:right}
-      .summary{margin-top:12px}</style></head><body>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        body{font-family:'Cairo',Arial,sans-serif;padding:20px;max-width:1000px;margin:auto;color:#111827}
+        h1{font-size:24px;margin:0 0 8px;text-align:center}
+        .summary{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 14px}
+        .card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px}
+        table{width:100%;border-collapse:collapse;margin-top:8px}
+        th,td{border:1px solid #e5e7eb;padding:8px;text-align:center}
+        thead th{background:#f3f4f6;font-weight:700}
+        .right{text-align:right}
+        tfoot td{font-weight:700;background:#fff7ed}
+        .final{background:#ecfeff}
+        @media print{body{padding:0}}
+      </style></head><body>
       <h1>كشف حساب</h1>
-      <div class="right">العميل: ${customerName}</div>
-      <div class="right">إجمالي العقود: ${totalRent.toLocaleString('ar-LY')} د.ل</div>
-      <div class="right">إجمالي المدفوع: ${totalPaid.toLocaleString('ar-LY')} د.ل</div>
-      <div class="right">المتبقي: ${balance.toLocaleString('ar-LY')} د.ل</div>
-      <div class="right">رصيد الحساب العام: ${accountPayments.toLocaleString('ar-LY')} د.ل</div>
-      <table><thead><tr><th>التاريخ</th><th>النوع</th><th>العقد</th><th>المبلغ</th><th>المرجع</th><th>ملاحظات</th></tr></thead><tbody>
-      ${rows.map(r=> `<tr><td>${r.paid_at ? new Date(r.paid_at).toLocaleDateString('ar-LY') : ''}</td><td>${r.entry_type||''}</td><td>${r.contract_number||'حساب عام'}</td><td>${(Number(r.amount)||0).toLocaleString('ar-LY')} د.ل</td><td>${r.reference||''}</td><td>${r.notes||''}</td></tr>`).join('')}
-      </tbody></table>
-      <script>window.onload=function(){window.print();}</script>
+      <div class="summary">
+        <div class="card">العميل: ${customerName}</div>
+        <div class="card">إجمالي العقود: ${totalRent.toLocaleString('ar-LY')} د.ل</div>
+        <div class="card">إجمالي المدفوع: ${totalPaid.toLocaleString('ar-LY')} د.ل</div>
+        <div class="card">الرصيد الحالي: ${(totalDebit - totalCredit).toLocaleString('ar-LY')} د.ل</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th class="right">البيان</th>
+            <th>مدين</th>
+            <th>دائن</th>
+            <th>الرصيد</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot>
+          <tr><td colspan="2">الإجماليات</td><td>${totalDebit.toLocaleString('ar-LY')}</td><td>${totalCredit.toLocaleString('ar-LY')}</td><td>${(totalDebit-totalCredit).toLocaleString('ar-LY')}</td></tr>
+          <tr class="final"><td colspan="4">الرصيد النهائي</td><td>${(totalDebit-totalCredit).toLocaleString('ar-LY')} د.ل</td></tr>
+        </tfoot>
+      </table>
+      <script>window.onload=function(){window.print()}</script>
       </body></html>`;
     const w = window.open('', '_blank'); if (w) { w.document.open(); w.document.write(html); w.document.close(); }
   };
@@ -1035,8 +1106,12 @@ export default function CustomerBilling() {
                 <div class="total-label">الرصيد المتبقي بعد الدفع</div>
                 <div class="total-amount">${remainingAfterPayment.toLocaleString('ar-LY')} د.ل</div>
             </div>
+            <div style="display:flex;gap:12px;margin-top:8px">
+              <div style="flex:1;border:1px dashed #94a3b8;border-radius:8px;height:88px;display:flex;align-items:flex-end;justify-content:center;padding:8px;color:#64748b">توقيع المستلم</div>
+              <div style="flex:1;border:1px dashed #94a3b8;border-radius:8px;height:88px;display:flex;align-items:flex-end;justify-content:center;padding:8px;color:#64748b">الختم</div>
+            </div>
         </div>
-        
+
         <div class="footer">
             <div>شكراً لتعاملكم معنا</div>
             <div class="contact-info">
