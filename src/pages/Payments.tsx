@@ -64,6 +64,8 @@ export default function Customers() {
   const [sizeCounts, setSizeCounts] = useState<Record<string, number>>({});
   const [printPrices, setPrintPrices] = useState<Record<string, number>>({});
   const [includeAccountBalance, setIncludeAccountBalance] = useState(false);
+  const [vatEnabled, setVatEnabled] = useState(false);
+  const [vatRate, setVatRate] = useState<number>(0);
 
   // add/edit customer states
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
@@ -130,7 +132,7 @@ export default function Customers() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('خطأ في تحميل البيانات');
+      toast.error('خطأ في تحميل البيانا��');
     }
   };
 
@@ -445,7 +447,7 @@ export default function Customers() {
         console.error('Error updating receipt:', error);
         toast.error('فشل في تحديث الإيصال');
       } else {
-        toast.success('تم تحديث الإيصال بنجاح');
+        toast.success('تم ��حديث الإيصال بنجاح');
         setEditReceiptOpen(false);
         setEditingReceipt(null);
         // Refresh the payments data
@@ -487,136 +489,54 @@ export default function Customers() {
   };
 
   const printReceipt = (payment: PaymentRow) => {
-    const html = `
-      <html dir="rtl">
-        <head>
-          <meta charset="utf-8">
-          <title>إيصال دفع</title>
-          <style>
-            body { 
-              font-family: 'Arial', sans-serif; 
-              padding: 20px; 
-              max-width: 600px; 
-              margin: auto;
-              background: white;
-              color: black;
-            }
-            .header {
-              text-align: center;
-              border-bottom: 2px solid #333;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .title {
-              font-size: 28px;
-              font-weight: bold;
-              color: #2c5aa0;
-              margin-bottom: 10px;
-            }
-            .company {
-              font-size: 16px;
-              color: #666;
-            }
-            .content {
-              line-height: 2;
-            }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              padding: 8px 0;
-              border-bottom: 1px solid #eee;
-            }
-            .label {
-              font-weight: bold;
-              color: #333;
-            }
-            .value {
-              color: #555;
-            }
-            .amount {
-              font-size: 24px;
-              font-weight: bold;
-              color: #2c5aa0;
-              text-align: center;
-              padding: 20px;
-              background: #f8f9fa;
-              border-radius: 8px;
-              margin: 20px 0;
-            }
-            .footer {
-              text-align: center;
-              margin-top: 40px;
-              padding-top: 20px;
-              border-top: 1px solid #ddd;
-              color: #666;
-            }
-            @media print {
-              body { margin: 0; padding: 20px; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">إيصال دفع</div>
-            <div class="company">شركة الفارس الذهبي للدعاية والإعلان</div>
+    const amount = Number(payment.amount) || 0;
+    const html = `<!DOCTYPE html><html dir='rtl'><head><meta charset='utf-8'>
+      <title>إيصال قبض</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Cairo',Arial,sans-serif;background:#fff;color:#2c3e50;padding:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .container{max-width:640px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+        .header{background:linear-gradient(135deg,#FFD700 0%,#FFA500 100%);padding:20px;text-align:center;position:relative}
+        .logo{height:56px;display:block;margin:0 auto 8px}
+        .title{display:inline-block;background:#fff;color:#2c3e50;border:2px solid #2c3e50;border-radius:24px;padding:8px 18px;font-weight:700}
+        .receipt-no{position:absolute;top:12px;left:12px;background:#2c3e50;color:#FFD700;border-radius:20px;padding:6px 12px;font-size:12px}
+        .content{padding:20px}
+        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9}
+        .row:last-child{border-bottom:none}
+        .label{font-weight:600;color:#1f2937}
+        .value{color:#334155}
+        .amount{margin:16px 0;padding:14px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-weight:700}
+        .signatures{display:flex;gap:12px;margin-top:24px}
+        .sign{flex:1;border:1px dashed #94a3b8;border-radius:8px;height:88px;display:flex;align-items:flex-end;justify-content:center;padding:8px;color:#64748b}
+        .footer{background:#111827;color:#FFD700;text-align:center;padding:14px}
+        @media print{body{padding:0}.container{border:none}}
+      </style></head><body>
+      <div class="container">
+        <div class="header">
+          <div class="receipt-no">#${(payment.id||'').toString().slice(-6)}</div>
+          <img class="logo" src="/coplete logofares-text. and sympol.svg" alt="Logo" onerror="this.style.display='none'" />
+          <div class="title">إيصال قبض</div>
+        </div>
+        <div class="content">
+          <div class="row"><span class="label">العميل:</span><span class="value">${payment.customer_name || '—'}</span></div>
+          <div class="row"><span class="label">رقم العقد:</span><span class="value">${payment.contract_number || (payment.entry_type==='account_payment'?'حساب عام':'—')}</span></div>
+          <div class="row"><span class="label">التاريخ:</span><span class="value">${payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('ar-LY') : '—'}</span></div>
+          <div class="row"><span class="label">الطريقة:</span><span class="value">${payment.method || '—'}</span></div>
+          <div class="row"><span class="label">المرجع:</span><span class="value">${payment.reference || '—'}</span></div>
+          ${payment.notes ? `<div class='row'><span class='label'>ملاحظات:</span><span class='value'>${payment.notes}</span></div>` : ''}
+          <div class="amount">المبلغ: ${amount.toLocaleString('ar-LY')} د.ل</div>
+          <div class="signatures">
+            <div class="sign">توقيع المستلم</div>
+            <div class="sign">الختم</div>
           </div>
-          
-          <div class="content">
-            <div class="row">
-              <span class="label">اسم العميل:</span>
-              <span class="value">${payment.customer_name || '—'}</span>
-            </div>
-            <div class="row">
-              <span class="label">رقم العقد:</span>
-              <span class="value">${payment.contract_number || (payment.entry_type === 'account_payment' ? 'حساب عام' : '—')}</span>
-            </div>
-            <div class="row">
-              <span class="label">نوع الدفعة:</span>
-              <span class="value">${payment.entry_type === 'account_payment' ? 'دفعة على الحساب' : payment.entry_type || '—'}</span>
-            </div>
-            <div class="row">
-              <span class="label">طريقة الدفع:</span>
-              <span class="value">${payment.method || '—'}</span>
-            </div>
-            <div class="row">
-              <span class="label">المرجع:</span>
-              <span class="value">${payment.reference || '—'}</span>
-            </div>
-            <div class="row">
-              <span class="label">التاريخ:</span>
-              <span class="value">${payment.paid_at ? new Date(payment.paid_at).toLocaleString('ar-LY') : '—'}</span>
-            </div>
-            ${payment.notes ? `
-            <div class="row">
-              <span class="label">ملاحظات:</span>
-              <span class="value">${payment.notes}</span>
-            </div>
-            ` : ''}
-          </div>
-          
-          <div class="amount">
-            المبلغ المدفوع: ${(Number(payment.amount)||0).toLocaleString('ar-LY')} دينار ليبي
-          </div>
-          
-          <div class="footer">
-            <p>شكراً لتعاملكم معنا</p>
-            <p>تم إنشاء هذا الإيصال في: ${new Date().toLocaleString('ar-LY')}</p>
-          </div>
-          
-          <script>
-            window.onload = function() {
-              window.print();
-            }
-          </script>
-        </body>
-      </html>`;
-    
+        </div>
+        <div class="footer">شكراً لتعاملكم معنا</div>
+      </div>
+      <script>window.onload=()=>{setTimeout(()=>window.print(),200)}</script>
+      </body></html>`;
     const w = window.open('', '_blank');
-    if (w) {
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-    }
+    if (w) { w.document.open(); w.document.write(html); w.document.close(); }
   };
 
   const printMultiContractInvoice = () => {
@@ -643,7 +563,9 @@ export default function Customers() {
       return sum + (qty * unitPrice);
     }, 0);
 
-    const finalTotal = contractTotal + printTotal + (includeAccountBalance ? accountBalance : 0);
+    const subtotal = contractTotal + printTotal;
+    const vatAmount = vatEnabled ? Math.max(0, subtotal * ((vatRate || 0) / 100)) : 0;
+    const finalTotal = subtotal + vatAmount + (includeAccountBalance ? accountBalance : 0);
 
     const contractRows = selectedContractData.map(contract => `
       <tr>
@@ -733,6 +655,16 @@ export default function Customers() {
       
       <table>
         <tbody>
+          <tr>
+            <td colspan="4">الإجمالي الفرعي</td>
+            <td>${subtotal.toLocaleString('ar-LY')} د.ل</td>
+          </tr>
+          ${vatEnabled ? `
+          <tr>
+            <td colspan="4">الضريبة (${(vatRate||0).toLocaleString('ar-LY')}%)</td>
+            <td>${vatAmount.toLocaleString('ar-LY')} د.ل</td>
+          </tr>
+          ` : ''}
           ${includeAccountBalance ? `
           <tr>
             <td colspan="4">رصيد الحساب العام</td>
@@ -912,7 +844,7 @@ export default function Customers() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>اسم الزبون</TableHead>
+                  <TableHead>اسم الزبو��</TableHead>
                   <TableHead>الهاتف</TableHead>
                   <TableHead>الشركة</TableHead>
                   <TableHead>عدد العقود</TableHead>
@@ -1378,6 +1310,14 @@ export default function Customers() {
               <label htmlFor="include-account-balance" className="text-sm cursor-pointer">
                 إضافة رصيد الحساب العام للعميل
               </label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Checkbox id="vat-enabled" checked={vatEnabled} onCheckedChange={(v)=> setVatEnabled(!!v)} />
+              <label htmlFor="vat-enabled" className="text-sm cursor-pointer">إضافة ضريبة</label>
+              <div className={"flex items-center gap-2 " + (!vatEnabled ? 'opacity-50 pointer-events-none' : '')}>
+                <span className="text-sm">النسبة %</span>
+                <Input type="number" className="w-20" value={String(vatRate)} onChange={(e)=> setVatRate(Math.max(0, Number(e.target.value)||0))} />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
